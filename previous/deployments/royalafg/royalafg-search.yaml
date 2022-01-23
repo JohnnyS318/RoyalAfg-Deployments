@@ -1,0 +1,85 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: royalafg-search
+spec: 
+  entryPoints:
+    - web
+  routes:
+    - match: PathPrefix(`/api/search`)
+      kind: Rule
+      services:
+        - name: royalafg-search
+          port: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: royalafg-search
+spec:
+  selector:
+    app: royalafg-search
+  ports:
+    - name: web
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: royalafg-search
+  labels:
+    app: royalafg-search
+data:
+  config.yaml: |
+    http_port: 8080
+    elasticsearch_username: elastic
+    elasticsearch_password: 7PBQUi9oKo30V4K558h8Rkc7
+    elasticsearch_address: https://search-es-http.default.svc:9200
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: royalafg-search
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: royalafg-search
+spec:
+  selector:
+    matchLabels:
+      app: royalafg-search
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: royalafg-search
+    spec:
+      containers:
+        - name: royalafg-search
+          image: "docker.io/johnnys318/royalafg_search:latest"
+          resources:
+            limits:
+              memory: "50Mi"
+              cpu: "25m"
+            requests:
+              memory: 10Mi
+              cpu: 10m
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          env:
+            - name: SEARCH_ELASTICSEARCH_CA
+              valueFrom:
+                secretKeyRef:
+                  key: tls.crt
+                  name: search-es-http-certs-public          
+          volumeMounts:
+            - name: royalafg-search-config
+              mountPath: "/etc/royalafg-search"
+
+      volumes:
+        - name: royalafg-search-config
+          configMap:
+            name: royalafg-search

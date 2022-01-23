@@ -1,0 +1,116 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: royalafg-poker-matchmaker
+data:
+  config.yaml: |
+    bank_service_url: localhost:8000
+    node_ips:
+      - 20.52.141.56
+      - 20.52.141.76
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: royalafg-poker-matchmaker
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: PathPrefix(`/api/poker`)
+      kind: Rule
+      services:
+        - name: royalafg-poker-matchmaker
+          port: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: royalafg-poker-matchmaker
+spec:
+  type: ClusterIP
+  selector:
+    app: royalafg-poker-matchmaker
+  ports:
+  - port: 8080
+    targetPort: 8080
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: 
+  name: royalafg-poker-matchmaker
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: royalafg-poker-matchmaker-access
+subjects:
+  - kind: User
+    name: system:serviceaccount:default:royalafg-poker-matchmaker
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: agones-allocator
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: royalafg-poker-matchmaker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: royalafg-poker-matchmaker
+  template:
+    metadata:
+      annotations:
+        "consul.hashicorp.com/connect-inject": "true"
+        "consul.hashicorp.com/connect-service-upstreams": "redis:6379, royalafg-bank:8000"
+
+        "consul.hashicorp.com/sidecar-proxy-cpu-request": "10m"
+        "consul.hashicorp.com/sidecar-proxy-cpu-limit": "25m"
+        "consul.hashicorp.com/sidecar-proxy-memory-request": "20Mi"
+        "consul.hashicorp.com/sidecar-proxy-memory-limit": "50Mi"
+        
+        "vault.hashicorp.com/agent-limits-cpu": "250m"
+        "vault.hashicorp.com/agent-limits-mem": "250Mi"
+        "vault.hashicorp.com/agent-requests-cpu": "20m"
+        "vault.hashicorp.com/agent-requests-mem": "25Mi"
+
+        "vault.hashicorp.com/agent-inject": "true"
+        "vault.hashicorp.com/agent-inject-secret-poker.yaml": "kv-v2/poker"
+        "vault.hashicorp.com/agent-inject-template-poker.yaml": |
+          {{- with secret "kv-v2/poker" -}}
+          matchmaker_signing_key: {{.Data.data.signing_key}}
+          {{- end }}
+        "vault.hashicorp.com/agent-inject-secret-session.yaml": "kv-v2/session-secret"
+        "vault.hashicorp.com/agent-inject-template-session.yaml": |
+          {{- with secret "kv-v2/session-secret" -}}
+          jwt_signing_key: {{.Data.data.secret}}
+          {{- end }}
+        "vault.hashicorp.com/role": poker-role
+      labels:
+        app: royalafg-poker-matchmaker
+    spec:
+      serviceAccountName: royalafg-poker-matchmaker
+      containers:
+      - name: royalafg-poker-matchmaker
+        image: docker.io/johnnys318/royalafg_poker_match:latest
+        resources:
+          requests:
+            memory: 10Mi
+            cpu: 10m
+          limits:
+            memory: "20Mi"
+            cpu: "10m"
+        ports:
+          - protocol: TCP
+            containerPort: 8080 
+        volumeMounts:
+          - mountPath: "/etc/royalafg-poker-matchmaker"
+            name: royalafg-poker-matchmaker-config
+      volumes:
+        - name: royalafg-poker-matchmaker-config
+          configMap:
+              name: royalafg-poker-matchmaker
+
