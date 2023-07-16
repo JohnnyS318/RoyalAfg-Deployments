@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: royalafg-web
+data:
+  .env: |
+    NEXT_PUBLIC_AUTH_HOST: http://127.0.0.1:59683
+    NEXT_PUBLIC_POKER_TICKET_HOST: http://127.0.0.1:59683

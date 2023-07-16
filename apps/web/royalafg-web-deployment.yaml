@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: royalafg-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: royalafg-web
+  template:
+    metadata:
+      annotations:
+        "consul.hashicorp.com/connect-inject": "true"
+        "consul.hashicorp.com/connect-service-upstreams": "royalafg-poker-matchmaker:59683, royalafg-auth:5000, royalafg-user:5001"
+      labels:
+        app: royalafg-web
+        service: web
+    spec:
+      serviceAccountName: royalafg-web
+      containers:
+        - name: royalafg-web
+          image: docker.io/johnnys318/royalafg_web:latest
+          ports:
+            - protocol: TCP
+              containerPort: 3000
+          env:
+            - name: API_ADRESS
+              value: http://20.79.79.64
+            - name: NEXT_PUBLIC_AUTH_HOST
+              value: http://127.0.0.1:5000
+            - name: AUTH_HOST
+              value: http://127.0.0.1:5000
+            - name: NEXT_PUBLIC_POKER_TICKET_HOST
+              value: http://127.0.0.1:59683
+            - name: POKER_INFO_HOST
+              value: http://127.0.0.1:59683
+            - name: USER_HOST
+              value: http://royalafg-user.default.svc.cluster.local:8080
+          resources:
+            limits:
+              cpu: 500m
+              memory: 500Mi
+            requests:
+              cpu: 200m
+              memory: 200Mi
