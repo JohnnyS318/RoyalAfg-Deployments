@@ -15,6 +15,8 @@ spec:
       labels:
         app: traefik
     spec:
+      nodeSelector:
+        ingress-ready: "true"
       serviceAccountName: traefik-account
       containers:
         - name: traefik
