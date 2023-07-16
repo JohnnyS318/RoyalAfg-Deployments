@@ -26,7 +26,6 @@ spec:
             - --providers.kubernetesingress
             - --providers.kubernetescrd
             - --entrypoints.web.address=:80
-            - --entrypoints.dashboard.address=:8080
             - --entrypoints.websecure.address=:443
             - --entrypoints.websecure.http.tls=true
           ports:
